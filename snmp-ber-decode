@@ -1,0 +1,174 @@
+    // Putter SNMP Decode 
+       public static string berDecode(String ber)
+       {
+           string result = "";
+
+           string[] mibStr = { "02", "04", "05", "06", "30", "40", "41", "42", "43", "44", "a1", "a0", "a5" };
+           string[] mibRep = { "[02] Integer", 
+                                "[04] String",
+                                "[05] NULL", 
+                                "[06] object Identifier",
+                                "[30] Sequence Of", 
+                                "[40] IP Address",
+                                "[41] Counter",
+                                "[42] guage",
+                                "[43] Time ticks",
+                                "[44] Opaque", 
+                                "[a1] Get Next",
+                                "[a0] Get",
+                                "[a5] Get Bullk"
+                              };
+
+          // string ber = "30 29 02 2 1 0 4 6 70 75 62 6c 69 63 a1 1e 2 4 4a 7b 5 33 2 1 0 2 1 0 30 10 30 e 6 a 2b 6 1 2 1 1 9 1 2 3c 5 0";
+           string[] sub = ber.Split(' ');
+
+           for (int i = 0; i < sub.Length; i++)
+           {
+               if (sub[i].Length == 1)
+               {
+                   sub[i] = "0" + sub[i];
+               }
+           }
+
+           bool tag = false, length = false, value = false;
+           int tagLength = 0, decConvert = 0, findValue = 0;
+           string strTag = "", decStr = "";
+           int obj = 0, ascii = 0;
+
+           //Start Decode
+           for (int i = 0; i < sub.Length; i++)
+           {
+               strTag = "";
+               decStr = "";
+               obj = 0;
+               ascii = 0;
+
+               if (i == 0)
+               {
+                   tag = true;
+               }
+
+               if (tag)
+               {
+                   tag = false;
+                   length = true;
+                   value = false;
+
+                   strTag = arrReplace(sub[i], mibStr, mibRep);
+
+                   result += "Tag : " + strTag;
+                   //Console.Write("Tag : " + strTag);
+
+
+               }
+               else if (length)
+               {
+
+                   decConvert = int.Parse(sub[i], System.Globalization.NumberStyles.HexNumber);
+                   result += " | Length : " + decConvert.ToString();
+                   // Console.Write(" | Length : " + decConvert);
+
+                   if (i != 0)
+                   {
+                       if ((sub[i - 1] == "30") || (sub[i - 1] == "a1") || (sub[i - 1] == "a0") || (sub[i - 1] == "a5"))
+                       {
+                           tag = true;
+                           length = false;
+                           value = false;
+                          // Console.WriteLine("");
+                           result += Environment.NewLine;
+                       }
+                       else
+                       {
+                           tag = false;
+                           length = false;
+                           value = true;
+                           findValue = decConvert;
+                       }
+                   }
+
+               }
+
+               else if (value)
+               {
+
+                   if (sub[i - 2] == "02")
+                   {
+                      // Console.Write(" | Values : ");
+                       result += " | Values : ";
+
+                       for (int j = i; j < i + decConvert; j++)
+                       {
+                           decStr += sub[j];
+                       }
+
+                      // Console.WriteLine("0x" + decStr + " -> " + int.Parse(decStr, System.Globalization.NumberStyles.HexNumber));
+                       result += "0x" + decStr.ToString() + " -> " + int.Parse(decStr, System.Globalization.NumberStyles.HexNumber).ToString()+Environment.NewLine;
+
+                       i = (i + decConvert) - 1;
+                       tag = true;
+                       length = false;
+                       value = false;
+                   }
+
+                   else if (sub[i - 2] == "04")
+                   {
+                      // Console.Write(" | Values : ");
+                       result += " | Values : ";
+
+                       for (int j = i; j < i + decConvert; j++)
+                       {
+                           ascii = int.Parse(sub[j].ToString(), System.Globalization.NumberStyles.HexNumber);
+                          // Console.Write(((char)ascii).ToString());
+                           result += ((char)ascii).ToString();
+                       }
+
+                      // Console.WriteLine();
+                       result += Environment.NewLine;
+
+                       i = (i + decConvert) - 1;
+                       tag = true;
+                       length = false;
+                       value = false;
+                   }
+
+                   else if ((sub[i - 2] == "06"))
+                   {
+                     //  Console.Write(" | Values : ");
+                       result += " Values -> ";
+
+                       for (int j = i; j < i + decConvert; j++)
+                       {
+                           obj += int.Parse(sub[j].ToString(), System.Globalization.NumberStyles.HexNumber);
+                           decStr += obj.ToString() + ".";
+                       }
+
+                      // Console.WriteLine(decStr);
+                       result += decStr.ToString()+Environment.NewLine;
+
+                       i = (i + decConvert) - 1;
+                       tag = true;
+                       length = false;
+                       value = false;
+                   }
+               }
+
+           }
+
+
+           //End
+           return(result);
+       }
+
+
+        public static string arrReplace(string str, string[] Old, string[] New)
+        {
+            for (int i = 0; i < Old.Length; i++)
+            {
+                if (i < New.Length)
+                {
+                    str = str.Replace(Old[i], New[i]);
+                }
+            }
+            return str;
+        }
